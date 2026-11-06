@@ -19,20 +19,20 @@ permissions:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 355
     steps:
       - name: Checkout Runner- (public)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkout mycode (private)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ github.repository_owner }}/mycode
           token: ${{ secrets.MYCODE_PAT }}
           path: mycode
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -59,6 +59,7 @@ jobs:
           RUN_SECONDS: "20400"
           SELFTEST: ${{ github.event.inputs.selftest || 'false' }}
           BOT1_TOKEN: ${{ secrets.BOT1_TOKEN }}
+          INDIA_PROXY: ${{ secrets.INDIA_PROXY }}
           BOT2_TOKEN: ${{ secrets.BOT2_TOKEN }}
           BOT3_TOKEN: ${{ secrets.BOT3_TOKEN }}
           BOT4_TOKEN: ${{ secrets.BOT4_TOKEN }}
