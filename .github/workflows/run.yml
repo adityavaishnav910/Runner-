@@ -36,6 +36,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Tesseract OCR + versions
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr
+          tesseract --version 2>&1 | head -1 || true
+          google-chrome --version || true
+          chromedriver --version || true
+
       - name: Install requirements
         run: pip install -r mycode/requirements.txt
 
@@ -69,7 +77,15 @@ jobs:
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
           DB_BOT_TOKEN: ${{ secrets.DB_BOT_TOKEN }}
           OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
-        run: python runner_main.py > /dev/null 2>&1 || true
+        run: |
+          rc=0
+          python runner_main.py > $RUNNER_TEMP/bots.log 2>&1 || rc=$?
+          echo "runner_main exit code: $rc"
+          if [ "$rc" -ne 0 ]; then
+            echo "::warning::runner_main exit code $rc"
+            grep -E '^[A-Za-z_.]*(Error|Exception)' $RUNNER_TEMP/bots.log | cut -c1-160 | sed -E 's/[0-9]{6,}/<num>/g' | tail -20 || true
+          fi
+          exit 0
 
       - name: Agla run shuru karo (chain)
         if: ${{ always() && github.event.inputs.selftest != 'true' }}
