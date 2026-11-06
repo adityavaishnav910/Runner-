@@ -64,6 +64,8 @@ jobs:
           BOT3_TOKEN: ${{ secrets.BOT3_TOKEN }}
           BOT4_TOKEN: ${{ secrets.BOT4_TOKEN }}
           BOT5_TOKEN: ${{ secrets.BOT5_TOKEN }}
+          UDISE_USER_1: ${{ secrets.UDISE_USER_1 }}
+          UDISE_PASS_1: ${{ secrets.UDISE_PASS_1 }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
           DB_BOT_TOKEN: ${{ secrets.DB_BOT_TOKEN }}
           OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
