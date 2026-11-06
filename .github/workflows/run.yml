@@ -1,0 +1,75 @@
+name: run-bots
+
+on:
+  workflow_dispatch:
+    inputs:
+      selftest:
+        description: "true = sirf test (bots + sites check), loop shuru nahi hoga"
+        default: "false"
+  schedule:
+    - cron: "7 * * * *"   # backup: har ghante, agar chain kabhi toot jaye
+
+concurrency:
+  group: bots
+  cancel-in-progress: false   # ek hi run chalega, doosra line me intezaar karega
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - name: Checkout Runner- (public)
+        uses: actions/checkout@v4
+
+      - name: Checkout mycode (private)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/mycode
+          token: ${{ secrets.MYCODE_PAT }}
+          path: mycode
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requirements
+        run: pip install -r mycode/requirements.txt
+
+      - name: Heartbeat (60 din inactivity se schedule band hone se bachata hai)
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $((now-last)) -gt 1209600 ]; then
+            date -u > heartbeat.txt
+            git config user.name "runner-bot"
+            git config user.email "runner-bot@users.noreply.github.com"
+            git add heartbeat.txt
+            git commit -m "heartbeat"
+            git push
+          fi
+
+      - name: Run bots (logs jaan-boojh ke chhupaye hain, repo public hai)
+        working-directory: mycode
+        env:
+          TZ: Asia/Kolkata
+          RUN_SECONDS: "20400"
+          SELFTEST: ${{ github.event.inputs.selftest || 'false' }}
+          BOT1_TOKEN: ${{ secrets.BOT1_TOKEN }}
+          BOT2_TOKEN: ${{ secrets.BOT2_TOKEN }}
+          BOT3_TOKEN: ${{ secrets.BOT3_TOKEN }}
+          BOT4_TOKEN: ${{ secrets.BOT4_TOKEN }}
+          BOT5_TOKEN: ${{ secrets.BOT5_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          DB_BOT_TOKEN: ${{ secrets.DB_BOT_TOKEN }}
+          OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
+        run: python runner_main.py > /dev/null 2>&1 || true
+
+      - name: Agla run shuru karo (chain)
+        if: ${{ always() && github.event.inputs.selftest != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run run.yml --repo ${{ github.repository }}
