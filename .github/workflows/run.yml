@@ -35,7 +35,14 @@ jobs:
       - name: System deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
+          fc-cache -f
+      - name: Chrome/driver versions (debug ke liye)
+        run: |
+          google-chrome --version || true
+          chromedriver --version || which chromedriver || true
+          tesseract --version | head -1 || true
+          fc-list :lang=hi | head -3 || true
       - name: Python deps
         run: pip install -q -r mycode/requirements.txt
       - name: Open vault
@@ -73,7 +80,14 @@ jobs:
           python-version: '3.12'
       - run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
+          fc-cache -f
+      - name: Chrome/driver versions (debug ke liye)
+        run: |
+          google-chrome --version || true
+          chromedriver --version || which chromedriver || true
+          tesseract --version | head -1 || true
+          fc-list :lang=hi | head -3 || true
       - run: pip install -q -r mycode/requirements.txt
       - working-directory: mycode
         env:
@@ -108,7 +122,14 @@ jobs:
           python-version: '3.12'
       - run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
+          fc-cache -f
+      - name: Chrome/driver versions (debug ke liye)
+        run: |
+          google-chrome --version || true
+          chromedriver --version || which chromedriver || true
+          tesseract --version | head -1 || true
+          fc-list :lang=hi | head -3 || true
       - run: pip install -q -r mycode/requirements.txt
       - working-directory: mycode
         env:
