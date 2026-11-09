@@ -6,8 +6,6 @@ on:
       selftest:
         description: "true = sirf test (bots + sites check), loop shuru nahi hoga"
         default: "false"
-  schedule:
-    - cron: "7 * * * *"   # backup: har ghante, agar chain kabhi toot jaye
 
 concurrency:
   group: bots
@@ -15,8 +13,6 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write
-
 jobs:
   run:
     runs-on: ubuntu-24.04
@@ -86,9 +82,3 @@ jobs:
             grep -E '^[A-Za-z_.]*(Error|Exception)' $RUNNER_TEMP/bots.log | cut -c1-160 | sed -E 's/[0-9]{6,}/<num>/g' | tail -20 || true
           fi
           exit 0
-
-      - name: Agla run shuru karo (chain)
-        if: ${{ always() && github.event.inputs.selftest != 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run run.yml --repo ${{ github.repository }}
