@@ -1,0 +1,30 @@
+name: selftest
+# Sirf bots/channel/network jaanchta hai (asli site par data nahi daalta).
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO }}
+          token: ${{ secrets.MYCODE_PAT }}
+          path: mycode
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q requests
+      - working-directory: mycode
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: bash tools/vault_unpack.sh
+      - working-directory: mycode
+        env:
+          SELFTEST: "true"
+        run: python runner_main.py

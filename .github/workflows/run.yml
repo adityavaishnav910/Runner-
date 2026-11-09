@@ -1,84 +1,137 @@
-name: run-bots
-
+name: 24x7 bots
 on:
   workflow_dispatch:
     inputs:
-      selftest:
-        description: "true = sirf test (bots + sites check), loop shuru nahi hoga"
-        default: "false"
-
-concurrency:
-  group: bots
-  cancel-in-progress: false   # ek hi run chalega, doosra line me intezaar karega
+      group:
+        description: 'Kaun sa group (main / bh_a / bh_b / all)'
+        default: 'all'
+      mode:
+        description: 'run ya test'
+        default: 'run'
+  schedule:
+    - cron: '7 * * * *'
 
 permissions:
-  contents: write
-jobs:
-  run:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 355
-    steps:
-      - name: Checkout Runner- (public)
-        uses: actions/checkout@v5
+  contents: read
 
-      - name: Checkout mycode (private)
-        uses: actions/checkout@v5
+jobs:
+  main:
+    if: github.event.inputs.group == 'main' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    concurrency:
+      group: run-main
+      cancel-in-progress: false
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/mycode
+          repository: ${{ secrets.PRIVATE_REPO }}
           token: ${{ secrets.MYCODE_PAT }}
           path: mycode
-
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-
-      - name: Install Tesseract OCR + versions
+          python-version: '3.12'
+      - name: System deps
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr
-          tesseract --version 2>&1 | head -1 || true
-          google-chrome --version || true
-          chromedriver --version || true
-
-      - name: Install requirements
-        run: pip install -r mycode/requirements.txt
-
-      - name: Heartbeat (60 din inactivity se schedule band hone se bachata hai)
-        run: |
-          last=$(git log -1 --format=%ct)
-          now=$(date +%s)
-          if [ $((now-last)) -gt 1209600 ]; then
-            date -u > heartbeat.txt
-            git config user.name "runner-bot"
-            git config user.email "runner-bot@users.noreply.github.com"
-            git add heartbeat.txt
-            git commit -m "heartbeat"
-            git push
-          fi
-
-      - name: Run bots (logs jaan-boojh ke chhupaye hain, repo public hai)
+          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+      - name: Python deps
+        run: pip install -q -r mycode/requirements.txt
+      - name: Open vault
         working-directory: mycode
         env:
-          TZ: Asia/Kolkata
-          RUN_SECONDS: "20400"
-          SELFTEST: ${{ github.event.inputs.selftest || 'false' }}
-          BOT1_TOKEN: ${{ secrets.BOT1_TOKEN }}
-          INDIA_PROXY: ${{ secrets.INDIA_PROXY }}
-          BOT2_TOKEN: ${{ secrets.BOT2_TOKEN }}
-          BOT3_TOKEN: ${{ secrets.BOT3_TOKEN }}
-          BOT4_TOKEN: ${{ secrets.BOT4_TOKEN }}
-          BOT5_TOKEN: ${{ secrets.BOT5_TOKEN }}
-          UDISE_USER_1: ${{ secrets.UDISE_USER_1 }}
-          UDISE_PASS_1: ${{ secrets.UDISE_PASS_1 }}
-          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
-          DB_BOT_TOKEN: ${{ secrets.DB_BOT_TOKEN }}
-          OWNER_CHAT_ID: ${{ secrets.OWNER_CHAT_ID }}
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: bash tools/vault_unpack.sh
+      - name: Run group
+        working-directory: mycode
+        env:
+          GROUP: main
+          MODE: ${{ github.event.inputs.mode || 'run' }}
         run: |
-          rc=0
-          python runner_main.py > $RUNNER_TEMP/bots.log 2>&1 || rc=$?
-          echo "runner_main exit code: $rc"
-          if [ "$rc" -ne 0 ]; then
-            echo "::warning::runner_main exit code $rc"
-            grep -E '^[A-Za-z_.]*(Error|Exception)' $RUNNER_TEMP/bots.log | cut -c1-160 | sed -E 's/[0-9]{6,}/<num>/g' | tail -20 || true
+          if [ -f state/alldone_main.txt ]; then
+            echo "main group poora ho chuka, run nahi karte"
+            exit 0
           fi
-          exit 0
+          python runner_main.py
+
+  bh_a:
+    if: github.event.inputs.group == 'bh_a' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    concurrency:
+      group: run-bh_a
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO }}
+          token: ${{ secrets.MYCODE_PAT }}
+          path: mycode
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+      - run: pip install -q -r mycode/requirements.txt
+      - working-directory: mycode
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: bash tools/vault_unpack.sh
+      - working-directory: mycode
+        env:
+          GROUP: bh_a
+          MODE: ${{ github.event.inputs.mode || 'run' }}
+        run: |
+          if [ -f state/alldone_bh_a.txt ]; then
+            echo "bh_a poora ho chuka"
+            exit 0
+          fi
+          python runner_main.py
+
+  bh_b:
+    if: github.event.inputs.group == 'bh_b' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    concurrency:
+      group: run-bh_b
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO }}
+          token: ${{ secrets.MYCODE_PAT }}
+          path: mycode
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq chromium-browser chromium-chromedriver tesseract-ocr tesseract-ocr-hin
+      - run: pip install -q -r mycode/requirements.txt
+      - working-directory: mycode
+        env:
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: bash tools/vault_unpack.sh
+      - working-directory: mycode
+        env:
+          GROUP: bh_b
+          MODE: ${{ github.event.inputs.mode || 'run' }}
+        run: |
+          if [ -f state/alldone_bh_b.txt ]; then
+            echo "bh_b poora ho chuka"
+            exit 0
+          fi
+          python runner_main.py
+
+  chain:
+    needs: [main, bh_a, bh_b]
+    if: always() && github.event.inputs.mode != 'test'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Agla run turant shuru karo
+        env:
+          GH_TOKEN: ${{ secrets.MYCODE_PAT }}
+        run: |
+          gh workflow run run.yml --repo ${{ github.repository }} -f group=all -f mode=run || true
