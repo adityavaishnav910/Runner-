@@ -148,11 +148,22 @@ jobs:
 
   chain:
     needs: [main, bh_a, bh_b]
-    if: always() && github.event.inputs.mode != 'test'
+    if: ${{ !cancelled() && github.event.inputs.mode != 'test' }}
     runs-on: ubuntu-latest
     steps:
       - name: Agla run turant shuru karo
         env:
           GH_TOKEN: ${{ secrets.MYCODE_PAT }}
         run: |
-          gh workflow run run.yml --repo ${{ github.repository }} -f group=all -f mode=run || true
+          # Option A (upar if me): is run ke jobs cancel (concurrency-clash) hue to
+          # chain khud bhi "cancelled" maana jayega, naya dispatch nahi hoga.
+          # Option B: safety-net -- agar phir bhi koi run queued/in_progress nikla to skip.
+          running=$(gh run list --repo ${{ github.repository }} --workflow run.yml \
+            --status in_progress --json databaseId --jq 'length' 2>/dev/null || echo 0)
+          queued=$(gh run list --repo ${{ github.repository }} --workflow run.yml \
+            --status queued --json databaseId --jq 'length' 2>/dev/null || echo 0)
+          if [ "$running" -gt 1 ] || [ "$queued" -gt 0 ]; then
+            echo "Already ek run chal/queue me hai (running=$running queued=$queued) -- naya dispatch skip."
+          else
+            gh workflow run run.yml --repo ${{ github.repository }} -f group=all -f mode=run || true
+          fi
