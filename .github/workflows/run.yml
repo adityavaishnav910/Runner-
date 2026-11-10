@@ -50,6 +50,33 @@ jobs:
         env:
           VAULT_KEY: ${{ secrets.VAULT_KEY }}
         run: bash tools/vault_unpack.sh
+      - name: Decrypt DPV credentials
+        working-directory: mycode
+        env:
+          DPV_CRED_KEY: ${{ secrets.DPV_CRED_KEY }}
+          VAULT_KEY: ${{ secrets.VAULT_KEY }}
+        run: |
+          set +e
+          if [ -f data/credentials_clean.txt.enc ]; then
+            # Option A: DPV_CRED_KEY se decrypt
+            if [ -n "$DPV_CRED_KEY" ] && openssl enc -d -aes-256-cbc -pbkdf2 \
+                -in data/credentials_clean.txt.enc -out data/credentials_clean.txt \
+                -k "$DPV_CRED_KEY" 2>/tmp/dpv_err.log; then
+              echo "DPV credentials decrypt ho gayi (DPV_CRED_KEY se)."
+            # Option B: fallback -- VAULT_KEY se try karo
+            elif [ -n "$VAULT_KEY" ] && openssl enc -d -aes-256-cbc -pbkdf2 \
+                -in data/credentials_clean.txt.enc -out data/credentials_clean.txt \
+                -k "$VAULT_KEY" 2>/tmp/dpv_err2.log; then
+              echo "DPV credentials decrypt ho gayi (fallback VAULT_KEY se)."
+            else
+              echo "::warning::DPV credentials decrypt NAHI hui -- dono key fail. DPV khaali chalega."
+              cat /tmp/dpv_err.log 2>/dev/null || true
+              cat /tmp/dpv_err2.log 2>/dev/null || true
+            fi
+          else
+            echo "data/credentials_clean.txt.enc nahi mila, skip."
+          fi
+          set -e
       - name: Run group
         working-directory: mycode
         env:
