@@ -72,6 +72,7 @@ jobs:
               echo "::warning::DPV credentials decrypt NAHI hui -- dono key fail. DPV khaali chalega."
               cat /tmp/dpv_err.log 2>/dev/null || true
               cat /tmp/dpv_err2.log 2>/dev/null || true
+              rm -f data/credentials_clean.txt   # garbage/partial output hata do, warna UnicodeDecodeError se crash hota hai
             fi
           else
             echo "data/credentials_clean.txt.enc nahi mila, skip."
