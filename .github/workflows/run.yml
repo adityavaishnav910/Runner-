@@ -167,6 +167,7 @@ jobs:
         env:
           GROUP: bh_b
           MODE: ${{ github.event.inputs.mode || 'run' }}
+          ISTIHAR_BOT_TOKEN: ${{ secrets.ISTIHAR_BOT_TOKEN }}
         run: |
           if [ -f state/alldone_bh_b.txt ]; then
             echo "bh_b poora ho chuka"
