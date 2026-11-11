@@ -125,6 +125,17 @@ jobs:
         env:
           GROUP: bh_a
           MODE: ${{ github.event.inputs.mode || 'run' }}
+          BHUIYAN_DIST1_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST1_BOT_TOKEN }}
+          BHUIYAN_DIST2_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST2_BOT_TOKEN }}
+          BHUIYAN_DIST3_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST3_BOT_TOKEN }}
+          BHUIYAN_DIST4_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST4_BOT_TOKEN }}
+          BHUIYAN_DIST5_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST5_BOT_TOKEN }}
+          BHUIYAN_DIST6_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST6_BOT_TOKEN }}
+          BHUIYAN_DIST7_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST7_BOT_TOKEN }}
+          BHUIYAN_DIST8_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST8_BOT_TOKEN }}
+          BHUIYAN_DIST9_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST9_BOT_TOKEN }}
+          BHUIYAN_DIST10_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST10_BOT_TOKEN }}
+          BHUIYAN_DIST11_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST11_BOT_TOKEN }}
         run: |
           if [ -f state/alldone_bh_a.txt ]; then
             echo "bh_a poora ho chuka"
