@@ -21,17 +21,16 @@ jobs:
       fail-fast: false
       matrix:
         group: [main, bh_a, bh_b]
-    if: |
-      github.event.inputs.group == matrix.group ||
-      github.event.inputs.group == 'all' ||
-      github.event.inputs.group == ''
     runs-on: ubuntu-latest
     timeout-minutes: 355
     concurrency:
       group: run-${{ matrix.group }}
       cancel-in-progress: false
+    env:
+      WANTED: ${{ github.event.inputs.group == matrix.group || github.event.inputs.group == 'all' || github.event.inputs.group == '' }}
     steps:
       - name: Checkout private repo
+        if: env.WANTED == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.PRIVATE_REPO }}
@@ -39,16 +38,19 @@ jobs:
           path: mycode
 
       - uses: actions/setup-python@v5
+        if: env.WANTED == 'true'
         with:
           python-version: '3.12'
 
       - name: System deps
+        if: env.WANTED == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
           fc-cache -f
 
       - name: Chrome/driver versions (debug ke liye)
+        if: env.WANTED == 'true'
         run: |
           google-chrome --version || true
           chromedriver --version || which chromedriver || true
@@ -56,16 +58,18 @@ jobs:
           fc-list :lang=hi | head -3 || true
 
       - name: Python deps
+        if: env.WANTED == 'true'
         run: pip install -q -r mycode/requirements.txt
 
       - name: Open vault
+        if: env.WANTED == 'true'
         working-directory: mycode
         env:
           VAULT_KEY: ${{ secrets.VAULT_KEY }}
         run: bash tools/vault_unpack.sh
 
       - name: Decrypt DPV credentials
-        if: matrix.group == 'main'
+        if: env.WANTED == 'true' && matrix.group == 'main'
         working-directory: mycode
         env:
           DPV_CRED_KEY: ${{ secrets.DPV_CRED_KEY }}
@@ -93,6 +97,7 @@ jobs:
           set -e
 
       - name: Run group
+        if: env.WANTED == 'true'
         working-directory: mycode
         env:
           GROUP: ${{ matrix.group }}
