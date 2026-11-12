@@ -1,4 +1,5 @@
 name: 24x7 bots
+
 on:
   workflow_dispatch:
     inputs:
@@ -15,12 +16,19 @@ permissions:
   contents: read
 
 jobs:
-  main:
-    if: github.event.inputs.group == 'main' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
+  scrape:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [main, bh_a, bh_b]
+    if: |
+      github.event.inputs.group == matrix.group ||
+      github.event.inputs.group == 'all' ||
+      github.event.inputs.group == ''
     runs-on: ubuntu-latest
     timeout-minutes: 355
     concurrency:
-      group: run-main
+      group: run-${{ matrix.group }}
       cancel-in-progress: false
     steps:
       - name: Checkout private repo
@@ -29,28 +37,35 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO }}
           token: ${{ secrets.MYCODE_PAT }}
           path: mycode
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: System deps
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
           fc-cache -f
+
       - name: Chrome/driver versions (debug ke liye)
         run: |
           google-chrome --version || true
           chromedriver --version || which chromedriver || true
           tesseract --version | head -1 || true
           fc-list :lang=hi | head -3 || true
+
       - name: Python deps
         run: pip install -q -r mycode/requirements.txt
+
       - name: Open vault
         working-directory: mycode
         env:
           VAULT_KEY: ${{ secrets.VAULT_KEY }}
         run: bash tools/vault_unpack.sh
+
       - name: Decrypt DPV credentials
+        if: matrix.group == 'main'
         working-directory: mycode
         env:
           DPV_CRED_KEY: ${{ secrets.DPV_CRED_KEY }}
@@ -58,12 +73,10 @@ jobs:
         run: |
           set +e
           if [ -f data/credentials_clean.txt.enc ]; then
-            # Option A: DPV_CRED_KEY se decrypt
             if [ -n "$DPV_CRED_KEY" ] && openssl enc -d -aes-256-cbc -pbkdf2 \
                 -in data/credentials_clean.txt.enc -out data/credentials_clean.txt \
                 -k "$DPV_CRED_KEY" 2>/tmp/dpv_err.log; then
               echo "DPV credentials decrypt ho gayi (DPV_CRED_KEY se)."
-            # Option B: fallback -- VAULT_KEY se try karo
             elif [ -n "$VAULT_KEY" ] && openssl enc -d -aes-256-cbc -pbkdf2 \
                 -in data/credentials_clean.txt.enc -out data/credentials_clean.txt \
                 -k "$VAULT_KEY" 2>/tmp/dpv_err2.log; then
@@ -72,122 +85,39 @@ jobs:
               echo "::warning::DPV credentials decrypt NAHI hui -- dono key fail. DPV khaali chalega."
               cat /tmp/dpv_err.log 2>/dev/null || true
               cat /tmp/dpv_err2.log 2>/dev/null || true
-              rm -f data/credentials_clean.txt   # garbage/partial output hata do, warna UnicodeDecodeError se crash hota hai
+              rm -f data/credentials_clean.txt
             fi
           else
             echo "data/credentials_clean.txt.enc nahi mila, skip."
           fi
           set -e
+
       - name: Run group
         working-directory: mycode
         env:
-          GROUP: main
+          GROUP: ${{ matrix.group }}
           MODE: ${{ github.event.inputs.mode || 'run' }}
+          BHUIYAN_DIST1_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST1_BOT_TOKEN || '' }}
+          BHUIYAN_DIST2_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST2_BOT_TOKEN || '' }}
+          BHUIYAN_DIST3_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST3_BOT_TOKEN || '' }}
+          BHUIYAN_DIST4_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST4_BOT_TOKEN || '' }}
+          BHUIYAN_DIST5_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST5_BOT_TOKEN || '' }}
+          BHUIYAN_DIST6_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST6_BOT_TOKEN || '' }}
+          BHUIYAN_DIST7_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST7_BOT_TOKEN || '' }}
+          BHUIYAN_DIST8_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST8_BOT_TOKEN || '' }}
+          BHUIYAN_DIST9_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST9_BOT_TOKEN || '' }}
+          BHUIYAN_DIST10_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST10_BOT_TOKEN || '' }}
+          BHUIYAN_DIST11_BOT_TOKEN: ${{ matrix.group == 'bh_a' && secrets.BHUIYAN_DIST11_BOT_TOKEN || '' }}
+          ISTIHAR_BOT_TOKEN: ${{ matrix.group == 'bh_b' && secrets.ISTIHAR_BOT_TOKEN || '' }}
         run: |
-          if [ -f state/alldone_main.txt ]; then
-            echo "main group poora ho chuka, run nahi karte"
-            exit 0
-          fi
-          python runner_main.py
-
-  bh_a:
-    if: github.event.inputs.group == 'bh_a' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 355
-    concurrency:
-      group: run-bh_a
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.PRIVATE_REPO }}
-          token: ${{ secrets.MYCODE_PAT }}
-          path: mycode
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
-          fc-cache -f
-      - name: Chrome/driver versions (debug ke liye)
-        run: |
-          google-chrome --version || true
-          chromedriver --version || which chromedriver || true
-          tesseract --version | head -1 || true
-          fc-list :lang=hi | head -3 || true
-      - run: pip install -q -r mycode/requirements.txt
-      - working-directory: mycode
-        env:
-          VAULT_KEY: ${{ secrets.VAULT_KEY }}
-        run: bash tools/vault_unpack.sh
-      - working-directory: mycode
-        env:
-          GROUP: bh_a
-          MODE: ${{ github.event.inputs.mode || 'run' }}
-          BHUIYAN_DIST1_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST1_BOT_TOKEN }}
-          BHUIYAN_DIST2_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST2_BOT_TOKEN }}
-          BHUIYAN_DIST3_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST3_BOT_TOKEN }}
-          BHUIYAN_DIST4_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST4_BOT_TOKEN }}
-          BHUIYAN_DIST5_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST5_BOT_TOKEN }}
-          BHUIYAN_DIST6_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST6_BOT_TOKEN }}
-          BHUIYAN_DIST7_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST7_BOT_TOKEN }}
-          BHUIYAN_DIST8_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST8_BOT_TOKEN }}
-          BHUIYAN_DIST9_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST9_BOT_TOKEN }}
-          BHUIYAN_DIST10_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST10_BOT_TOKEN }}
-          BHUIYAN_DIST11_BOT_TOKEN: ${{ secrets.BHUIYAN_DIST11_BOT_TOKEN }}
-        run: |
-          if [ -f state/alldone_bh_a.txt ]; then
-            echo "bh_a poora ho chuka"
-            exit 0
-          fi
-          python runner_main.py
-
-  bh_b:
-    if: github.event.inputs.group == 'bh_b' || github.event.inputs.group == 'all' || github.event.inputs.group == ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 355
-    concurrency:
-      group: run-bh_b
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.PRIVATE_REPO }}
-          token: ${{ secrets.MYCODE_PAT }}
-          path: mycode
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-hin fonts-noto-core fonts-lohit-deva
-          fc-cache -f
-      - name: Chrome/driver versions (debug ke liye)
-        run: |
-          google-chrome --version || true
-          chromedriver --version || which chromedriver || true
-          tesseract --version | head -1 || true
-          fc-list :lang=hi | head -3 || true
-      - run: pip install -q -r mycode/requirements.txt
-      - working-directory: mycode
-        env:
-          VAULT_KEY: ${{ secrets.VAULT_KEY }}
-        run: bash tools/vault_unpack.sh
-      - working-directory: mycode
-        env:
-          GROUP: bh_b
-          MODE: ${{ github.event.inputs.mode || 'run' }}
-          ISTIHAR_BOT_TOKEN: ${{ secrets.ISTIHAR_BOT_TOKEN }}
-        run: |
-          if [ -f state/alldone_bh_b.txt ]; then
-            echo "bh_b poora ho chuka"
+          if [ -f "state/alldone_${{ matrix.group }}.txt" ]; then
+            echo "${{ matrix.group }} poora ho chuka, run nahi karte"
             exit 0
           fi
           python runner_main.py
 
   chain:
-    needs: [main, bh_a, bh_b]
+    needs: scrape
     if: ${{ !cancelled() && github.event.inputs.mode != 'test' }}
     runs-on: ubuntu-latest
     steps:
@@ -195,9 +125,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.MYCODE_PAT }}
         run: |
-          # Option A (upar if me): is run ke jobs cancel (concurrency-clash) hue to
-          # chain khud bhi "cancelled" maana jayega, naya dispatch nahi hoga.
-          # Option B: safety-net -- agar phir bhi koi run queued/in_progress nikla to skip.
           running=$(gh run list --repo ${{ github.repository }} --workflow run.yml \
             --status in_progress --json databaseId --jq 'length' 2>/dev/null || echo 0)
           queued=$(gh run list --repo ${{ github.repository }} --workflow run.yml \
